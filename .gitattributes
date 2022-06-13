@@ -1,2 +1,2 @@
-*.py linguist-language=python2.7
-*.ipynb linguist-language=python2.7
+*.py linguist-language=python
+*.ipynb linguist-language=python
