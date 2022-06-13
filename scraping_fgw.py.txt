@@ -1,0 +1,66 @@
+# coding: utf-8
+# from bs4 import BeautifulSoup
+# from urllib2 import urlopen
+# import re
+import requests
+# import webbrowser
+import pandas as pd
+import json
+import jsonpath
+
+keyword = u'林业生态'
+savename = u'发改委信息公开-'
+url_search = "https://so.ndrc.gov.cn/api/query"
+
+param = {
+    'qt': '',
+    'tab': 'all', 
+    'page': 1, 
+    'pageSize': 20,
+    'siteCode': 'bm04000fgk', 
+    'key': 'CAB549A94CF659904A7D6B0E8FC8A7E9', 
+#     startDateStr: 
+#     endDateStr: 
+    'timeOption': 0, 
+    'sort': 'dateDesc'
+}
+
+param['qt'] = keyword
+
+page = 1
+all_title = []
+all_href = []
+all_date = []
+
+while page:
+    param['page'] = page
+    r = requests.get(url_search, params=param)
+#     print page, r.status_code
+    r_json = json.loads(r.content)
+    if r.status_code == 200 and r_json['resultList']:
+        print page
+        page += 1
+        all_title.extend(jsonpath.jsonpath(r_json,"$..title"))
+        all_href.extend(jsonpath.jsonpath(r_json,"$..url"))
+        all_date.extend(jsonpath.jsonpath(r_json,"$..publishTime"))
+    else:
+        print "finish!"
+        page = -1
+        break
+
+# print all_date[0]
+
+df = pd.DataFrame({
+    u'公文名称': all_title, 
+    u'正文链接': all_href, 
+    u'发布日期': all_date
+})
+
+column = [
+    u'公文名称', 
+    u'正文链接', 
+    u'发布日期'
+]
+
+
+df.to_csv(savename+keyword+'.csv', index=False, encoding='utf_8_sig', columns=column)

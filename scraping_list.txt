@@ -1,0 +1,138 @@
+# coding: utf-8
+
+from bs4 import BeautifulSoup
+# from urllib2 import urlopen
+import re
+import requests
+import webbrowser
+import pandas as pd
+
+# # 林草
+
+url_base = "http://www.forestry.gov.cn"
+url_index = "/sites/main/main/gov/govindex.jsp"
+
+param = {
+    'p': '1', 
+    'textfield2': '林业生态', 
+    'startdt': '2002-01-01', 
+    'stopdt': '2099-12-30', 
+    'govtypeid': '0', 
+    'typeid': '0', 
+    'page': 1
+}
+
+all_title = []
+all_href = []
+all_date = []
+all_number = []
+
+for page in range(1, 6):
+    param['page'] = page
+    r = requests.get(url_base+url_index, params=param)
+    soup = BeautifulSoup(r.text, features='lxml')
+    
+    all_document_a = soup.find_all('a', {'class': 'tooltip'})
+    all_title.extend([d.get_text() for d in all_document_a])
+    all_href.extend([d['href'] for d in all_document_a])
+
+    all_date_td = soup.find_all('td', {'class':'border_bottom_c2ceb3', 'width':'100'})
+    all_date.extend([d.get_text() for d in all_date_td])
+
+    all_number_td = soup.find_all('td', {'class':'border_bottom_c2ceb3', 'width':'130'})
+    all_number.extend([d.get_text() for d in all_number_td])
+    
+all_href = [url_base+h for h in all_href]
+
+df = pd.DataFrame({
+    u'公文名称': all_title, 
+    u'发文日期': all_date, 
+    u'文号': all_number, 
+    u'正文链接': all_href
+})
+
+column = [u'公文名称', u'发文日期', u'文号', u'正文链接']
+
+df.to_csv(u'林草信息公开.csv', index=False, encoding='utf_8_sig', columns=column)
+
+
+# # 政府
+
+url_search = "http://sousuo.gov.cn/list.htm"
+
+param = {
+    'q': '林业生态',
+    'n': 15, 
+    'p': 0, 
+    't': 'paper', 
+    'sort': 'publishDate', 
+    # childtype: 
+    # subchildtype: 
+    # pcodeJiguan: 
+    # pcodeYear: 
+    # pcodeNum: 
+    # location: 
+    'searchfield': 'title:content:pcode:puborg:keyword', 
+    # title: 
+    # content: 
+    # pcode: 
+    # puborg: 
+    'timetype': 'timeqb'
+    # mintime: 
+    # maxtime: 
+}
+
+all_title = []
+all_href = []
+all_index = []
+all_class = []
+all_dept = []
+all_date_f = []
+all_number = []
+all_date_p = []
+
+for p in range(16):
+    param['p'] = p
+    r = requests.get(url_search, params=param)
+#     webbrowser.open(r.url)
+    soup = BeautifulSoup(r.content, features='lxml')
+    all_document = soup.find_all('td', {'class': 'info'})
+    
+    for d in all_document:
+#         all_title.append(d.a.text)
+        all_href.append(d.a['href'])
+        all_info = [re.findall(r"</strong>(.*?)</li>", unicode(i))[0] 
+                    for i in BeautifulSoup(unicode(d), features="lxml").find_all('li')]
+#         print type(all_info)
+        all_index.append(all_info[0])
+        all_class.append(all_info[1])
+        all_dept.append(all_info[2])
+        all_date_f.append(all_info[3])
+        all_title.append(all_info[4])
+        all_number.append(all_info[5])
+        all_date_p.append(all_info[6])
+        
+
+df = pd.DataFrame({
+    u'公文名称': all_title, 
+    u'正文链接': all_href, 
+    u'主题分类': all_class, 
+    u'发文机关': all_dept, 
+    u'索引号': all_index, 
+    u'发文字号': all_number, 
+    u'成文日期': all_date_f, 
+    u'发布日期': all_date_p
+})
+
+column = [
+    u'公文名称', 
+    u'正文链接', 
+    u'主题分类', 
+    u'发文机关', 
+    u'索引号', 
+    u'发文字号', 
+    u'成文日期', 
+    u'发布日期'
+]
+
+df.to_csv(u'政府信息公开.csv', index=False, encoding='utf_8_sig', columns=column)
